@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+    <style>
+        body {
+            background-color: rgb(254, 237, 255);
+        }
+        td.selected {
+            background-color: rgb(176, 148, 170);
+        }
+        td.editable {
+            background-color: #ffc0ec;
+        }
+        tr.row-selected td {
+            background-color: #d0eaff;
+        }
+        #summary-table {
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <button onclick="refreshData()">refresh list</button>
+    <table width="1500" border="1">
+        <tr>
+            <th>uid</th>
+            <th>name</th>
+            <th>birth date</th>
+            <th>hobbies</th>
+            <th>country</th>
+            <th>street</th>
+            <th>city</th>
+            <th>postal code</th>
+            <th>action</th>
+        </tr>
+    </table>
+
+    <h3>Koníčky a počty</h3>
+    <table id="summary-table" width="600" border="1">
+        <tr>
+            <th>hobby</th>
+            <th>pocet</th>
+        </tr>
+        <tbody></tbody>
+    </table>
+
+    <script>
+        let selectedRow = null;
+
+        function updateHobbySummary(data) {
+            const hobbyCount = {};
+            data.forEach(user => {
+                user.hobbies.forEach(hobby => {
+                    hobbyCount[hobby] = (hobbyCount[hobby] || 0) + 1;
+                });
+            });
+
+            const summaryBody = document.querySelector('#summary-table tbody');
+            summaryBody.innerHTML = '';
+            
+            Object.entries(hobbyCount).sort().forEach(([hobby, count]) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${hobby}</td>
+                    <td>${count}</td>
+                `;
+                summaryBody.appendChild(row);
+            });
+        }
+
+        function addClickHandlers(row, user) {
+            const cells = row.querySelectorAll('td:not(.action)');
+            cells.forEach(cell => {
+                cell.addEventListener('click', function() {
+                    this.classList.toggle('selected');
+                });
+            });
+
+            row.addEventListener('click', function() {
+                if (selectedRow) {
+                    selectedRow.classList.remove('row-selected');
+                }
+                selectedRow = row;
+                selectedRow.classList.add('row-selected');
+            });
+        }
+
+        function toggleEditRow(row) {
+            const editButton = row.querySelector('.edit-button');
+            const isEditing = editButton.textContent === 'edit';
+            const cells = row.querySelectorAll('td:not(.action)');
+
+            cells.forEach(cell => {
+                cell.contentEditable = isEditing;
+                cell.classList.toggle('editable', isEditing);
+            });
+
+            editButton.textContent = isEditing ? 'save' : 'edit';
+            if (!isEditing) {
+                row.classList.remove('editing');
+            } else {
+                row.classList.add('editing');
+            }
+        }
+
+        function loadData(data) {
+            const table = document.querySelector('table');
+            data.forEach((user, index) => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${user.uid}</td>
+                    <td>${user.name}</td>
+                    <td>${user.birth_date}</td>
+                    <td>${user.hobbies.join(', ')}</td>
+                    <td>${user.country}</td>
+                    <td>${user.address.street}</td>
+                    <td>${user.address.city}</td>
+                    <td>${user.address.postal_code}</td>
+                    <td class="action"><button type="button" class="edit-button">edit</button></td>
+                `;
+                addClickHandlers(row, user);
+                row.querySelector('.edit-button').addEventListener('click', function(e) {
+                    e.stopPropagation();
+                    toggleEditRow(row);
+                });
+                table.appendChild(row);
+                if (index === 0) {
+                    selectedRow = row;
+                    selectedRow.classList.add('row-selected');
+                }
+            });
+            updateHobbySummary(data);
+        }
+
+        fetch('http://test.qvamp.eu/feed')
+            .then(response => response.json())
+            .then(data => loadData(data))
+            .catch(error => console.error('Error fetching users:', error));
+            
+        function refreshData() {
+            const table = document.querySelector('table');
+            selectedRow = null;
+            while (table.rows.length > 1) {
+                table.deleteRow(1);
+            }
+            fetch('http://test.qvamp.eu/feed')
+                .then(response => response.json())
+                .then(data => loadData(data))
+                .catch(error => console.error('Error fetching users:', error));
+        }
+    </script>
+</body>
+</html>
